@@ -9,7 +9,7 @@ def num_to_month(num):
     else:
         raise ValueError("Value must be a number from 1 to 12")
 
-# extract year, month, average temp, and avergae wind speed from weather station csv
+# extract year, month, average temp, and average wind speed from weather station csv
 def wind_n_temp(input_file):
     with open(input_file, 'r') as file:
         data = csv.reader(file)

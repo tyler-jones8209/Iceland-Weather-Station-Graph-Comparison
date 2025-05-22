@@ -1,107 +1,155 @@
 import matplotlib.pyplot as plt
 import csv
-import calendar
 
-# turn an integer value into its corresponding month name
-def num_to_month(num):
-    if 1 <= num <= 12:
-        return calendar.month_name[num]
-    else:
-        raise ValueError("Value must be a number from 1 to 12")
-
-# extract year, month, average temp, and average wind speed from weather station csv
-def wind_n_temp(input_file):
+def translate_climate_var(var):
+    translations = {
+        't': 'Avg Temp (°C)',
+        'tx': 'Avg Max Daily Temp (°C)',
+        'txx': 'Highest Max Temp (°C)',
+        'txxD1': 'Day of Highest Max Temp (°C)',
+        'tn': 'Avg Min Daily Temp (°C)',
+        'tnn': 'Lowest Min Temp (°C)',
+        'tnnD1': 'Day of Lowest Min Temp (°C)',
+        'rh': 'Avg Relative Humidity (%)',
+        'r': 'Total Precipitation (mm)',
+        'rx': 'Max 24-Hour Precipitation (mm)',
+        'rxD1': 'Day of Max Precipitation (mm)',
+        'p': 'Avg Sea Level Pressure (?)',
+        'nh': 'Avg Cloud Cover (Oktas)',
+        'sun': 'Bright Sunshine Hours',
+        'f': 'Avg Wind Speeds (m/s)'
+    }
+    
+    return translations[var]
+    
+def get_csv_data(input_file):
+    
     with open(input_file, 'r') as file:
         data = csv.reader(file)
         next(data) # skip name header
-        next(data) # skip letter thingies
-    
-        avg_temp = [] # line[3] - t
-        avg_wind = [] # line[17] - f
-        
-        for line in data:
-            if line[3].strip() != 'NA':
-                avg_temp.append([line[1], line[2], line[3]])
-            if line[17].strip() != 'NA':
-                avg_wind.append([line[1], line[2], line[17]])
-        display_name = input_file.split('.')[0].capitalize()
-        return avg_temp, avg_wind, display_name
+        rows = [row for row in data]
+        return rows
 
-# turned year index generation into a function instead of doing it for each data column being used
-def generate_year_indices(data, year_start, year_end):
+def get_avail_years(data):
+    data = data[1:]
+    begin_year = data[0][1]
+    end_year = data[-1][1]
+    return begin_year, end_year
+
+def get_start_end_index(data, range_start_year, range_end_year):
     start_index = None
-    end_index = None
-    for i, line in enumerate(data):
-        if int(line[0]) == year_start:
-            start_index = i
+    for i, row in enumerate(data[1:]):
+        if float(row[1]) == float(range_start_year):
+            start_index = i + 1
             break
-    for i, line in enumerate(data):
-        if int(line[0]) == year_end:
-            end_index = i
-    if start_index is None or end_index is None:
-        raise ValueError(f"{year_start}, {year_end}, or both, are out of range.")
+        
+    end_index = None
+    for i, row in enumerate(data[1:]):
+        if float(row[1]) == float(range_end_year):
+            end_index = i + 1
+    
     return start_index, end_index
 
-# plot temp data
-def plot_temp(avg_temp, diplay_name, year_start, year_end):
+def extract_climate_data(data, climate, index_start, index_end):
+    climate_index = None
+    for i, item in enumerate(data[0]):
+        if str(item) == str(climate):
+            climate_index = i
 
-    # generate start and end indices
-    start_index, end_index = generate_year_indices(avg_temp, year_start, year_end)
+    sliced_data = data[index_start:index_end + 1]
 
-    # use a line graph if only analyzing one year
-    if year_start == year_end:
-        x_vals = [num_to_month(int(x[1])) for x in avg_temp[start_index:end_index + 1]]
-        y_vals = [float(x[2]) for x in avg_temp[start_index:end_index + 1]]
+    climate_data = []
+    for row in sliced_data:
+        year = row[1]
+        month = int(row[2])
+        value = None if row[climate_index] == 'NA' else float(row[climate_index])
+        climate_data.append([year, month, value])
 
-        plt.xlabel(str(year_start))
-        plt.xticks(rotation=33)
-        plt.plot(x_vals, y_vals, alpha=0.7, color='red', marker='.', ms=10)
+    complete_data = []
+    i = 0
+    while i < len(climate_data):
+        current_year = climate_data[i][0]
+        expected_months = list(range(1, 13))
+        current_month_index = 0
+
+        while current_month_index < 12:
+            if i < len(climate_data) and climate_data[i][0] == current_year:
+                actual_month = climate_data[i][1]
+                if actual_month == expected_months[current_month_index]:
+                    complete_data.append([current_year, f"{actual_month:02}", climate_data[i][2]])
+                    i += 1
+                else:
+                    complete_data.append([current_year, f"{expected_months[current_month_index]:02}", None])
+            else:
+                complete_data.append([current_year, f"{expected_months[current_month_index]:02}", None])
+            current_month_index += 1
+
+    for j in range(len(complete_data)):
+        if complete_data[j][2] is None:
+            prev_idx = j - 1
+            while prev_idx >= 0 and complete_data[prev_idx][2] is None:
+                prev_idx -= 1
+
+            next_idx = j + 1
+            while next_idx < len(complete_data) and complete_data[next_idx][2] is None:
+                next_idx += 1
+
+            if 0 <= prev_idx < len(complete_data) and 0 <= next_idx < len(complete_data):
+                prev_val = complete_data[prev_idx][2]
+                next_val = complete_data[next_idx][2]
+                gap_size = next_idx - prev_idx
+                step = (next_val - prev_val) / gap_size
+                complete_data[j][2] = prev_val + step * (j - prev_idx)
+            else:
+                complete_data[j][2] = 0.0
+
+    return complete_data
+
+def get_two_files_data(file1, file2, climate):
+    data1 = get_csv_data(file1)
+    data2 = get_csv_data(file2)
     
-    # use a scatter plot when multiple years are used with each dot being a month of the year
-    else:
-        x_vals = [x[0] for x in avg_temp[start_index:end_index + 1]]
-        y_vals = [float(x[2]) for x in avg_temp[start_index:end_index + 1]]
-        plt.xlabel(str(f"{year_start} - {year_end}"))
-        plt.xticks(rotation=33)
-        plt.scatter(x_vals, y_vals, alpha=0.7, color='red')
-        
-    plt.ylabel("Average Temperature (C°)")
-    plt.tight_layout()
-    plt.title(f"Average Temperature in {display_name}")
-    plt.show()
-
-# plot wind data
-def plot_wind(avg_wind, display_name, year_start, year_end):
-
-    # generate start and end indices
-    start_index, end_index = generate_year_indices(avg_wind, year_start, year_end)
-
-    # use a line graph if only analyzing one year
-    if year_start == year_end:
-        x_vals = [num_to_month(int(x[1])) for x in avg_wind[start_index:end_index + 1]]
-        y_vals = [float(x[2]) for x in avg_wind[start_index:end_index + 1]]
-
-        plt.xlabel(str(year_start))
-        plt.xticks(rotation=33)
-        plt.plot(x_vals, y_vals, alpha=0.9, marker='.', ms=10)
+    begin_year1, end_year1 = get_avail_years(data1)
+    begin_year2, end_year2 = get_avail_years(data2)
     
-    # use a scatter plot when multiple years are used with each dot being a month of the year
-    else:
-        x_vals = [x[0] for x in avg_wind[start_index:end_index + 1]]
-        y_vals = [float(x[2]) for x in avg_wind[start_index:end_index + 1]]
-        plt.xlabel(str(f"{year_start} - {year_end}"))
-        plt.xticks(rotation=33)
-        plt.scatter(x_vals, y_vals, alpha=0.7)
-        
-    plt.ylabel("Average Wind Speed (m/s)")
+    overlap = f"{max([begin_year1, begin_year2])}-{min([end_year1, end_year2])}"
+    print(f"Both files overlap between: {overlap}")
+
+    range_start_year = input("Choose year range start:")
+    range_end_year = input("Choose year range end:")
+
+    start_index1, end_index1 = get_start_end_index(data1, range_start_year, range_end_year)
+    start_index2, end_index2 = get_start_end_index(data2, range_start_year, range_end_year)
+
+    climate_data1 = extract_climate_data(data1, climate, start_index1, end_index1)
+    climate_data2 = extract_climate_data(data2, climate, start_index2, end_index2)
+
+    return climate_data1, climate_data2
+
+def plot_two_files(data1, data2, name1, name2, climate_var):
+    x_vals1 = [f"{row[1]}/{row[0][2:]}" for row in data1]
+    y_vals1 = [float(row[2]) for row in data1]
+
+    x_vals2 = [f"{row[1]}/{row[0][2:]}" for row in data2]
+    y_vals2 = [float(row[2]) for row in data2]
+
+    y_label = translate_climate_var(climate_var)
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(x_vals1, y_vals1, color='blue', marker='.', ms=10, label=name1)
+    plt.plot(x_vals2, y_vals2, color='green', marker='.', ms=10, label=name2)
+
+    plt.xticks(rotation=45)
+    plt.xlabel("Date (MM/YY)")
+    plt.ylabel(y_label)
+    plt.title(f"{name1} vs {name2}")
+    plt.legend()
     plt.tight_layout()
-    plt.title(f"Average Wind Speed in {display_name}")
+    plt.grid(True)
     plt.show()
 
 # do the stuff with the stuff
 if __name__ == "__main__":
-    avg_temp, avg_wind, display_name = wind_n_temp("dalatangi.csv")
-    plot_temp(avg_temp, display_name, 2024, 2024)
-    plot_wind(avg_wind, display_name, 2024, 2024)
-    plot_temp(avg_temp, display_name, 2018, 2025)
-    plot_wind(avg_wind, display_name, 2018, 2025)
+    file1, file2, climate_var = "dalatangi.csv", "seydisfjordur.csv", "txx"
+    data1, data2 = get_two_files_data(file1, file2, climate_var)
+    plot_two_files(data1, data2, file1, file2, climate_var)

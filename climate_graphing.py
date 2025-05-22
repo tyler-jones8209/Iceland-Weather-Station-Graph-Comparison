@@ -14,8 +14,8 @@ def translate_climate_var(var):
         'r': 'Total Precipitation (mm)',
         'rx': 'Max 24-Hour Precipitation (mm)',
         'rxD1': 'Day of Max Precipitation (mm)',
-        'p': 'Avg Sea Level Pressure (?)',
-        'nh': 'Avg Cloud Cover (Oktas)',
+        'p': 'Avg Sea Level Pressure (mb)',
+        'nh': 'Avg Cloud Cover (oktas)',
         'sun': 'Bright Sunshine Hours',
         'f': 'Avg Wind Speeds (m/s)'
     }

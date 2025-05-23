@@ -15,7 +15,7 @@ def translate_climate_var(var):
         'rx': 'Max 24-Hour Precipitation (mm)',
         'rxD1': 'Day of Max Precipitation (mm)',
         'p': 'Avg Sea Level Pressure (mb)',
-        'nh': 'Avg Cloud Cover (oktas)',
+        'nh': 'Avg Cloud Cover (Oktas)',
         'sun': 'Bright Sunshine Hours',
         'f': 'Avg Wind Speeds (m/s)'
     }
@@ -105,6 +105,21 @@ def extract_climate_data(data, climate, index_start, index_end):
 
     return complete_data
 
+def get_one_file_data(file, climate):
+    data = get_csv_data(file)
+    
+    begin_year, end_year = get_avail_years(data)
+    
+    print(f"Year range: {begin_year}-{end_year}")
+    range_start_year = input("Choose year range start:")
+    range_end_year = input("Choose year range end:")
+
+    start_index, end_index = get_start_end_index(data, range_start_year, range_end_year)
+
+    climate_data = extract_climate_data(data, climate, start_index, end_index)
+
+    return climate_data
+
 def get_two_files_data(file1, file2, climate):
     data1 = get_csv_data(file1)
     data2 = get_csv_data(file2)
@@ -126,7 +141,32 @@ def get_two_files_data(file1, file2, climate):
 
     return climate_data1, climate_data2
 
+def plot_one_file(data, name, climate_var):
+
+    name = name.split('/')[1].split('.')[0].split('_')[0]
+    
+    x_vals = [f"{row[1]}/{row[0][2:]}" for row in data]
+    y_vals = [float(row[2]) for row in data]
+
+    y_label = translate_climate_var(climate_var)
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(x_vals, y_vals, color='blue', marker='.', ms=10, label=name)
+
+    plt.xticks(rotation=45)
+    plt.xlabel("Date (MM/YY)")
+    plt.ylabel(y_label)
+    plt.title(name)
+    plt.legend()
+    plt.tight_layout()
+    plt.grid(True)
+    plt.show()
+
 def plot_two_files(data1, data2, name1, name2, climate_var):
+
+    name1 = name1.split('/')[1].split('.')[0].split('_')[0]
+    name2 = name2.split('/')[1].split('.')[0].split('_')[0]
+    
     x_vals1 = [f"{row[1]}/{row[0][2:]}" for row in data1]
     y_vals1 = [float(row[2]) for row in data1]
 
@@ -137,7 +177,7 @@ def plot_two_files(data1, data2, name1, name2, climate_var):
     
     plt.figure(figsize=(10, 5))
     plt.plot(x_vals1, y_vals1, color='blue', marker='.', ms=10, label=name1)
-    plt.plot(x_vals2, y_vals2, color='green', marker='.', ms=10, label=name2)
+    plt.plot(x_vals2, y_vals2, color='red', marker='.', ms=10, label=name2)
 
     plt.xticks(rotation=45)
     plt.xlabel("Date (MM/YY)")
@@ -150,6 +190,9 @@ def plot_two_files(data1, data2, name1, name2, climate_var):
 
 # do the stuff with the stuff
 if __name__ == "__main__":
-    file1, file2, climate_var = "dalatangi.csv", "seydisfjordur.csv", "txx"
-    data1, data2 = get_two_files_data(file1, file2, climate_var)
-    plot_two_files(data1, data2, file1, file2, climate_var)
+    #file1, file2, climate_var = "station_data/dalatangi.csv", "station_data/seydisfjordur.csv", "f"
+    #data1, data2 = get_two_files_data(file1, file2, climate_var)
+    #plot_two_files(data1, data2, file1, file2, climate_var)
+    file, climate_var = "station_data/dalatangi.csv", "t"
+    data = get_one_file_data(file, climate_var)
+    plot_one_file(data, file, climate_var)

@@ -9,3 +9,4 @@ The variables used on the CSVs are not initially intuitive, so here's a table of
 # Example Graphs using Dalatangi and Seydisfjordur Station Data
 ![Graph1](graph1.png)
 ![Graph2](graph2.png)
+![Graph3](graph3.png)
